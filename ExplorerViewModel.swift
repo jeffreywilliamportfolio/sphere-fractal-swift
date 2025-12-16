@@ -382,8 +382,8 @@ final class ExplorerViewModel: ObservableObject {
     // MARK: - Advanced Lighting
     
     // UI Bindings (Color)
-    @Published var baseColor: Color = .cyan
-    @Published var trapColor: Color = .purple
+    @Published var baseColor: Color = Color(red: 0.0, green: 0.6, blue: 1.0) // Electric Blue
+    @Published var trapColor: Color = Color(red: 0.9, green: 0.95, blue: 1.0) // Icy White
     
     @Published var lightDirection: SIMD3<Float> = SIMD3<Float>(0.5, 1.0, 0.3)
     @Published var shadowSoftness: Float = 16.0

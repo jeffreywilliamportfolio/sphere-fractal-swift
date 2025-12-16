@@ -222,6 +222,11 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
 
     float3 color = lighting * baseColor;
 
+    // Fresnel Rim Light (Glowing Edges)
+    float fresnel = pow(1.0 - max(dot(n, -rd), 0.0), 4.0);
+    float3 rimColor = float3(0.6, 0.8, 1.0); // Icy blue rim
+    color += rimColor * fresnel * 0.8; // Add glow on top
+
     // Fog
     float fogAmount = 1.0 - exp(-t * 0.02);
     float3 fogColor = float3(0.1, 0.1, 0.15);

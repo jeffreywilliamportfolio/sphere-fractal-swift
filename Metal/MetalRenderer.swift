@@ -145,8 +145,8 @@ struct RenderSnapshot {
         logScale: 0,
         lightDirection: SIMD3<Float>(0.5, 1.0, 0.3),
         shadowSoftness: 16.0,
-        trapColor: SIMD3<Float>(1, 0.5, 0),
-        baseColor: SIMD3<Float>(0, 0.6, 1.0),
+        trapColor: SIMD3<Float>(0.9, 0.95, 1.0),
+        baseColor: SIMD3<Float>(0.0, 0.6, 1.0),
         ambientIntensity: 0.2
     )
 }
