@@ -117,18 +117,28 @@ struct ShaderUniforms {
 }
 
 struct RenderSnapshot {
-    var cameraPos: SIMD3<Float>
+    var position: SIMD3<Float>
     var cameraDir: SIMD3<Float>
     var cameraUp: SIMD3<Float>
     var offset: SIMD3<Float>
     var logScale: Float
 
+    // Lighting
+    var lightDirection: SIMD3<Float>
+    var shadowSoftness: Float
+    var trapColor: SIMD3<Float>
+    var ambientIntensity: Float
+
     static let `default` = RenderSnapshot(
-        cameraPos: SIMD3<Float>(0, 0, 8),
+        position: Constants.initialCameraPos,
+        offset: .zero,
+        logScale: 0,
         cameraDir: SIMD3<Float>(0, 0, -1),
         cameraUp: SIMD3<Float>(0, 1, 0),
-        offset: .zero,
-        logScale: 0
+        lightDirection: SIMD3<Float>(0.5, 1.0, 0.3),
+        shadowSoftness: 16.0,
+        trapColor: SIMD3<Float>(1, 0.5, 0),
+        ambientIntensity: 0.2
     )
 }
 
