@@ -31,7 +31,7 @@ final class ExplorerViewModel: ObservableObject {
     private var lastHUDUpdateTime: CFTimeInterval = 0
     private var lastFPSUpdateTime: CFTimeInterval = 0
 
-    private let bookmarksKey = "FractalSphereExplorer.bookmarks.v1"
+    private let bookmarksKey = "AeternaSphere.bookmarks.v1"
     private var gamepadManager: GamepadManager?
 
     init() {
@@ -358,13 +358,37 @@ final class ExplorerViewModel: ObservableObject {
     func togglePrecisionMode() {
         let newValue: Bool = {
             lock.lock()
-            defer { lock.unlock() }
-            nav.precisionMode.toggle()
-            return nav.precisionMode
-        }()
         DispatchQueue.main.async { [weak self] in
             self?.isPrecisionMode = newValue
         }
+    }
+
+    // MARK: - Advanced Lighting
+    @Published var lightDirection: SIMD3<Float> = SIMD3<Float>(0.5, 1.0, 0.3)
+    @Published var shadowSoftness: Float = 16.0
+    @Published var trapColor: SIMD3<Float> = SIMD3<Float>(1.0, 0.5, 0.0) // Orange glow
+    @Published var ambientIntensity: Float = 0.2
+    
+    // MARK: - Internal
+    private var cancellables = Set<AnyCancellable>()
+    private var gamepadManager = GamepadManager()
+    private let navLock = NSLock()
+    
+    // Shader Uniforms (Must match Metal struct alignment)
+    struct Uniforms {
+        var uResolution: SIMD2<Float>
+        var uCameraPos: SIMD3<Float>
+        var uCameraDir: SIMD3<Float>
+        var uCameraUp: SIMD3<Float>
+        var uOffset: SIMD3<Float>
+        var uLogScale: Float
+        var uTime: Float
+        
+        // Lighting
+        var uLightDir: SIMD3<Float>
+        var uShadowSoftness: Float
+        var uTrapColor: SIMD3<Float>
+        var uAmbientIntensity: Float
     }
 }
 

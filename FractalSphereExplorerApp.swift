@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Fractal Sphere Explorer
+/// Aeterna Sphere
 /// © 2025 Jeffrey William Shorthill
 @main
 struct FractalSphereExplorerApp: App {

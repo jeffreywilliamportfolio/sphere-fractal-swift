@@ -24,11 +24,19 @@ struct AppearanceSettingsView: View {
     var body: some View {
         Form {
             Section {
-                preview
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-            } header: {
-                Text("Preview")
+                VStack(spacing: 12) {
+                    Text("Appearance Settings")
+                        .font(.system(size: 20, weight: .semibold, design: appearance.typography.fontDesign))
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    preview
+                        .frame(maxWidth: 520)
+                }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
 
             Section("Theme") {
@@ -148,10 +156,16 @@ struct AppearanceSettingsView: View {
             }
 
             Section {
-                Button("Reset to Defaults") {
-                    resetToDefaults()
+                HStack {
+                    Spacer(minLength: 0)
+                    Button("Reset to Defaults") {
+                        resetToDefaults()
+                    }
+                    .buttonStyle(.bordered)
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.bordered)
+                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 8, trailing: 0))
+                .listRowSeparator(.hidden)
             }
         }
     }
@@ -214,7 +228,7 @@ struct AppearanceSettingsSheet: View {
     var body: some View {
         NavigationStack {
             AppearanceSettingsView()
-                .navigationTitle("Appearance")
+                .padding(20)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
@@ -225,3 +239,67 @@ struct AppearanceSettingsSheet: View {
     }
 }
 
+// MARK: - Local Components
+
+private struct Keycap: View {
+    @Environment(\.explorerAppearance) private var appearance
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold, design: appearance.typography.fontDesign))
+            .foregroundStyle(appearance.textPrimary)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 7)
+            .background {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.thinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(appearance.panelStroke.opacity(0.55), lineWidth: 1)
+                    }
+            }
+    }
+}
+
+private struct GlassPanel<Content: View>: View {
+    @Environment(\.explorerAppearance) private var appearance
+    private let content: () -> Content
+
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+            .padding(10)
+            .background {
+                switch appearance.panelShape {
+                case .rounded:
+                    panelBackground(for: RoundedRectangle(cornerRadius: appearance.panelCornerRadius, style: .circular))
+                case .squircle:
+                    panelBackground(for: RoundedRectangle(cornerRadius: appearance.panelCornerRadius, style: .continuous))
+                case .capsule:
+                    panelBackground(for: Capsule(style: .continuous))
+                }
+            }
+            .shadow(color: .black.opacity(appearance.shadowOpacity), radius: 16, x: 0, y: 10)
+    }
+
+    private func panelBackground<S: InsettableShape>(for shape: S) -> some View {
+        shape
+            .fill(appearance.material.material)
+            .overlay {
+                shape
+                    .fill(appearance.panelTint)
+                    .opacity(appearance.glassTintOpacity)
+                    .blendMode(.plusLighter)
+            }
+            .overlay {
+                shape
+                    .strokeBorder(appearance.panelStroke, lineWidth: 1)
+            }
+    }
+}

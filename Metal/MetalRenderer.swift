@@ -71,16 +71,20 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let t = Float(now - startTime)
         let resolution = SIMD2<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height))
 
-        let snapshot = viewModel?.stepFrame() ?? RenderSnapshot.default
+        let snap = viewModel?.stepFrame() ?? RenderSnapshot.default
 
-        var uniforms = ShaderUniforms(
-            uResolution: resolution,
-            uCameraPos: snapshot.cameraPos,
-            uCameraDir: snapshot.cameraDir,
-            uCameraUp: snapshot.cameraUp,
-            uOffset: snapshot.offset,
-            uLogScale: snapshot.logScale,
-            uTime: t
+        var uniforms = ExplorerViewModel.Uniforms(
+            uResolution: SIMD2<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height)),
+            uCameraPos: snap.position,
+            uCameraDir: snap.cameraDir,
+            uCameraUp: snap.cameraUp,
+            uOffset: snap.offset,
+            uLogScale: snap.logScale,
+            uTime: Float(CACurrentMediaTime()),
+            uLightDir: normalize(snap.lightDirection),
+            uShadowSoftness: snap.shadowSoftness,
+            uTrapColor: snap.trapColor,
+            uAmbientIntensity: snap.ambientIntensity
         )
         memcpy(uniformBuffer.contents(), &uniforms, MemoryLayout<ShaderUniforms>.stride)
 
