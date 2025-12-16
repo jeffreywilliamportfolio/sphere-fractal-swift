@@ -387,7 +387,7 @@ final class ExplorerViewModel: ObservableObject {
     
     @Published var lightDirection: SIMD3<Float> = SIMD3<Float>(0.5, 1.0, 0.3)
     @Published var shadowSoftness: Float = 16.0
-    @Published var ambientIntensity: Float = 0.2
+    @Published var ambientIntensity: Float = 0.5
     
     // Computed SIMD3 for RenderSnapshot
     var baseColorSIMD: SIMD3<Float> {

@@ -200,13 +200,13 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float3 ambient = float3(u.uAmbientIntensity);
     
     // Soft Shadows
-    float shadow = softShadow(p + n * 0.01, lightDir, u.uShadowSoftness, u);
+    float shadow = softShadow(p + n * 0.05, lightDir, u.uShadowSoftness, u);
     
     float ndl = max(dot(n, lightDir), 0.0);
     float3 diffuse = float3(0.8, 0.8, 0.8) * ndl * shadow; // Apply shadow to diffuse
 
     float3 r = reflect(-lightDir, n);
-    float spec = 0.5 * pow(max(dot(rd, r), 0.0), 32.0) * shadow; // Apply shadow to spec
+    float spec = 0.8 * pow(max(dot(rd, r), 0.0), 64.0) * shadow; // Sharp, strong highlights
     float3 specular = float3(spec);
 
     float ao = computeAO(p, n, u);
@@ -218,7 +218,7 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float3 trapGlow = mix(u.uTrapColor, float3(1.0), 1.0 - trapIntensity); // White hot center
     
     // Base color mixed with trap (use user base color)
-    float3 baseColor = mix(u.uBaseColor, trapGlow, 0.6); // Blend user base with Trap
+    float3 baseColor = mix(u.uBaseColor, trapGlow, 0.4); // Balanced mix (was 0.6 trap dominant)
 
     float3 color = lighting * baseColor;
 
@@ -231,7 +231,9 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float vignette = 1.0 - length(vUv - 0.5) * 0.5;
     vignette = clamp(vignette, 0.0, 1.0);
     color *= vignette;
+    
+    // Gamma Correction (Linear -> sRGB)
+    color = pow(color, float3(1.0 / 2.2));
 
     return float4(color, 1.0);
 }
-

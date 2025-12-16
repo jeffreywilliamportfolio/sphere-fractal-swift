@@ -52,6 +52,14 @@ struct AppearanceSettingsView: View {
                        get: { vm.trapColor },
                        set: { vm.trapColor = $0 }
                     ))
+                    
+                    HStack {
+                        Text("Ambient Light")
+                        Slider(value: Binding(
+                            get: { vm.ambientIntensity },
+                            set: { vm.ambientIntensity = Float($0) }
+                        ), in: 0.0...1.0, step: 0.05)
+                    }
                 }
             }
 
