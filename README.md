@@ -1,10 +1,10 @@
-# 🔮 Aeterna Sphere
+# 🔮 Aeterna Sphere | Powered by  Metal
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg?style=flat&logo=swift)
 ![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg?style=flat&logo=apple)
 ![Metal](https://img.shields.io/badge/Renderer-Metal-blue.svg?style=flat)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)
 
-## Powered by  Metal
+
 
 > **Explore the infinite complexity of the Mandelbulb fractal in real-time.** 
 > Use a gamepad or keyboard to dive deep into a recursively generated alien world, rendered entirely on the GPU with Apple Metal.
