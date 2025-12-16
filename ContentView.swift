@@ -94,13 +94,14 @@ private struct MenuScreen: View {
 
             // Minimized Central Card
             VStack(spacing: 24) {
-                Text("Aeterna Sphere")
-                    .font(.system(size: 32, weight: .light, design: appearance.typography.fontDesign))
-                    .foregroundStyle(.white)
+                Image("aeterna")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 400)
                     .shadow(color: appearance.accent.opacity(0.5), radius: 8)
 
                 Button(action: engage) {
-                    Label("Enter Engagement", systemImage: "infinity")
+                    Label("Enter Sphere", systemImage: "infinity")
                         .font(.system(size: 16, weight: .semibold, design: appearance.typography.fontDesign))
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
@@ -251,15 +252,10 @@ private struct SplashOverlay: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            Image(systemName: "infinity")
-                .font(.system(size: 80, weight: .thin))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.cyan, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            Image("logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 140, height: 140)
                 .shadow(color: .purple.opacity(0.5), radius: 20)
                 .scaleEffect(scale)
                 .opacity(opacity)
