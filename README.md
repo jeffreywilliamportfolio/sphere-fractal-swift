@@ -9,7 +9,6 @@
 > Use a gamepad or keyboard to dive deep into a recursively generated alien world, rendered entirely on the GPU with Apple Metal.
 
 ![Hero Screenshot](screenshots/hero.png)
-*(Drop your hero screenshot here: `screenshots/hero.png`)*
 
 ## ✨ Features
 
@@ -68,8 +67,6 @@ This project demonstrates several advanced graphics techniques:
 | Deep Zoom | Surface Detail | Lighting |
 | :---: | :---: | :---: |
 | ![Screenshot 1](screenshots/shot1.png) | ![Screenshot 2](screenshots/shot2.png) | ![Screenshot 3](screenshots/shot3.png) |
-
-*(Add screenshots to a `screenshots` folder in your repo to populate these)*
 
 ## 📄 License
 
