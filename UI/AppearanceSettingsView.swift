@@ -24,19 +24,18 @@ struct AppearanceSettingsView: View {
     var body: some View {
         Form {
             Section {
-                VStack(spacing: 12) {
-                    Text("Appearance Settings")
-                        .font(.system(size: 20, weight: .semibold, design: appearance.typography.fontDesign))
-                        .frame(maxWidth: .infinity, alignment: .center)
-
+                HStack {
+                    Spacer(minLength: 0)
                     preview
                         .frame(maxWidth: 520)
+                    Spacer(minLength: 0)
                 }
                 .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+            } header: {
+                Text("Preview")
             }
 
             Section("Theme") {
@@ -229,6 +228,7 @@ struct AppearanceSettingsSheet: View {
         NavigationStack {
             AppearanceSettingsView()
                 .padding(20)
+                .navigationTitle("Appearance Settings")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }

@@ -9,7 +9,12 @@ struct Uniforms {
     float3 uOffset;
     float uLogScale;
     float uTime;
-    float2 _pad;
+    
+    // Lighting
+    float3 uLightDir;
+    float uShadowSoftness;
+    float3 uTrapColor;
+    float uAmbientIntensity;
 };
 
 struct VertexOut {
@@ -46,17 +51,35 @@ float sphereConstraint(float3 p) {
     return length(p) - SPHERE_RADIUS;
 }
 
-float mandelbulbSDF(float3 p, constant Uniforms& u) {
+float softShadow(float3 ro, float3 rd, float k, constant Uniforms& u) {
+    float res = 1.0;
+    float t = 0.01;
+    for (int i = 0; i < 32; i++) {
+        float h = sceneSDF(ro + rd * t, u);
+        if (h < 0.001) return 0.0;
+        res = min(res, k * h / t);
+        t += h;
+        if (t > 10.0) break;
+    }
+    return clamp(res, 0.0, 1.0);
+}
+
+// Returns (distance, trap)
+float2 mapMandelbulb(float3 p, constant Uniforms& u) {
     float scale = exp(u.uLogScale);
     float3 c = (p - u.uOffset) * scale;
     float3 z = c;
 
     float dr = 1.0;
     float r = 0.0;
+    float trap = 1e20; // Start with huge distance
 
     for (int i = 0; i < BULB_ITERS; i++) {
         r = length(z);
         if (r > 2.0) { break; }
+        
+        // Orbit trap: track min distance to origin (or other geometry)
+        trap = min(trap, r);
 
         float rSafe = max(r, 1e-6);
         float theta = acos(clamp(z.z / rSafe, -1.0f, 1.0f));
@@ -78,13 +101,14 @@ float mandelbulbSDF(float3 p, constant Uniforms& u) {
 
     float rSafe = max(r, 1e-6);
     float dist = (0.5 * log(rSafe) * rSafe / dr);
-    return dist / scale;
+    return float2(dist / scale, trap);
 }
 
+// Wrapper for raymarching that only needs distance
 float sceneSDF(float3 p, constant Uniforms& u) {
-    float bulb = mandelbulbSDF(p, u);
+    float2 bulb = mapMandelbulb(p, u);
     float sphere = sphereConstraint(p);
-    return max(bulb, sphere); // only show fractal inside sphere (view-space constraint)
+    return max(bulb.x, sphere);
 }
 
 // MARK: - Raymarch / Shading
@@ -107,7 +131,7 @@ float raymarch(float3 ro, float3 rd, constant Uniforms& u) {
 }
 
 float3 estimateNormal(float3 p, constant Uniforms& u) {
-    float h = 0.001;
+    float h = 0.001 * (1.0 + exp(u.uLogScale)); // Scale epsilon with zoom
     float3 e1 = float3( 1.0, -1.0, -1.0);
     float3 e2 = float3(-1.0, -1.0,  1.0);
     float3 e3 = float3(-1.0,  1.0, -1.0);
@@ -124,7 +148,7 @@ float3 estimateNormal(float3 p, constant Uniforms& u) {
 
 float computeAO(float3 p, float3 n, constant Uniforms& u) {
     float ao = 1.0;
-    float aoStep = 0.1;
+    float aoStep = 0.1 * (1.0 + exp(u.uLogScale) * 0.5);
     for (int i = 1; i <= 5; i++) {
         float dist = float(i) * aoStep;
         ao -= (dist - sceneSDF(p + n * dist, u)) * 0.1;
@@ -163,23 +187,35 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
 
     float3 p = ro + rd * t;
     float3 n = estimateNormal(p, u);
+    
+    // Retrieve trap data at hit point
+    float2 mapData = mapMandelbulb(p, u);
+    float trap = mapData.y; // Min distance to origin during iteration
 
     // Lighting
-    float3 lightDir = normalize(float3(0.5, 1.0, 0.3));
-    float3 ambient = float3(0.2, 0.25, 0.3);
+    float3 lightDir = normalize(u.uLightDir);
+    float3 ambient = float3(u.uAmbientIntensity);
+    
+    // Soft Shadows
+    float shadow = softShadow(p + n * 0.01, lightDir, u.uShadowSoftness, u);
+    
     float ndl = max(dot(n, lightDir), 0.0);
-    float3 diffuse = float3(0.8, 0.7, 0.6) * ndl;
+    float3 diffuse = float3(0.8, 0.8, 0.8) * ndl * shadow; // Apply shadow to diffuse
 
     float3 r = reflect(-lightDir, n);
-    float spec = 0.5 * pow(max(dot(rd, r), 0.0), 32.0);
+    float spec = 0.5 * pow(max(dot(rd, r), 0.0), 32.0) * shadow; // Apply shadow to spec
     float3 specular = float3(spec);
 
     float ao = computeAO(p, n, u);
     float3 lighting = (ambient + diffuse + specular) * ao;
 
-    // Base color (depth-tinted)
-    float depth = clamp(u.uLogScale * 0.1, 0.0, 1.0);
-    float3 baseColor = mix(float3(0.9, 0.6, 0.3), float3(0.3, 0.5, 0.9), depth);
+    // Trap Coloring (Inner Glow)
+    // Map trap (0..2) to color intensity. Closer to 0 = deeper inside bulb structure = hotter color.
+    float trapIntensity = smoothstep(0.0, 1.0, trap); // exp(-trap * 2.0) could also work
+    float3 trapGlow = mix(u.uTrapColor, float3(1.0), 1.0 - trapIntensity); // White hot center
+    
+    // Base color mixed with trap
+    float3 baseColor = mix(float3(0.1, 0.4, 0.8), trapGlow, 0.6); // Blend Blue base with Trap
 
     float3 color = lighting * baseColor;
 
