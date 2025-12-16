@@ -73,7 +73,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
         let snap = viewModel?.stepFrame() ?? RenderSnapshot.default
 
-        var uniforms = ExplorerViewModel.Uniforms(
+        var uniforms = ShaderUniforms(
             uResolution: SIMD2<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height)),
             uCameraPos: snap.position,
             uCameraDir: snap.cameraDir,
@@ -113,7 +113,12 @@ struct ShaderUniforms {
     var uOffset: SIMD3<Float>
     var uLogScale: Float
     var uTime: Float
-    var _pad: SIMD2<Float> = .zero
+
+    // Lighting
+    var uLightDir: SIMD3<Float>
+    var uShadowSoftness: Float
+    var uTrapColor: SIMD3<Float>
+    var uAmbientIntensity: Float
 }
 
 struct RenderSnapshot {
@@ -130,11 +135,11 @@ struct RenderSnapshot {
     var ambientIntensity: Float
 
     static let `default` = RenderSnapshot(
-        position: Constants.initialCameraPos,
-        offset: .zero,
-        logScale: 0,
+        position: SIMD3<Float>(0, 0, 4),
         cameraDir: SIMD3<Float>(0, 0, -1),
         cameraUp: SIMD3<Float>(0, 1, 0),
+        offset: .zero,
+        logScale: 0,
         lightDirection: SIMD3<Float>(0.5, 1.0, 0.3),
         shadowSoftness: 16.0,
         trapColor: SIMD3<Float>(1, 0.5, 0),

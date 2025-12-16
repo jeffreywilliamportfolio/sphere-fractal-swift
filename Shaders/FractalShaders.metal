@@ -47,6 +47,8 @@ static constant float SPHERE_RADIUS = 4.5;
 static constant int BULB_ITERS = 8;
 static constant float BULB_POWER = 8.0;
 
+float sceneSDF(float3 p, constant Uniforms& u);
+
 float sphereConstraint(float3 p) {
     return length(p) - SPHERE_RADIUS;
 }
