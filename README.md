@@ -1,4 +1,4 @@
-# 🔮 Aeterna Sphere
+# 🔮 Aeterna Sphere | Powered by  Metal
 
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg?style=flat&logo=swift)
 ![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg?style=flat&logo=apple)
@@ -9,7 +9,6 @@
 > Use a gamepad or keyboard to dive deep into a recursively generated alien world, rendered entirely on the GPU with Apple Metal.
 
 ![Hero Screenshot](screenshots/hero.png)
-Powered by  Metal
 
 ## ✨ Features
 
