@@ -1,4 +1,4 @@
-# 🔮 Aeterna Sphere | Powered by  Metal
+# Aeterna Sphere | Powered by  Metal
 
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg?style=flat&logo=swift)
 ![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg?style=flat&logo=apple)
