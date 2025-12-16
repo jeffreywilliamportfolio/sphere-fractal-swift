@@ -54,7 +54,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingAppearance) {
-            AppearanceSettingsSheet()
+            AppearanceSettingsSheet(viewModel: viewModel)
         }
         .background(Color.black)
         .onChange(of: screen) { _, newValue in

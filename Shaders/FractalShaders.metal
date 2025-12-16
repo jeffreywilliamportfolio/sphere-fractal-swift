@@ -14,6 +14,7 @@ struct Uniforms {
     float3 uLightDir;
     float uShadowSoftness;
     float3 uTrapColor;
+    float3 uBaseColor;
     float uAmbientIntensity;
 };
 
@@ -216,8 +217,8 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float trapIntensity = smoothstep(0.0, 1.0, trap); // exp(-trap * 2.0) could also work
     float3 trapGlow = mix(u.uTrapColor, float3(1.0), 1.0 - trapIntensity); // White hot center
     
-    // Base color mixed with trap
-    float3 baseColor = mix(float3(0.1, 0.4, 0.8), trapGlow, 0.6); // Blend Blue base with Trap
+    // Base color mixed with trap (use user base color)
+    float3 baseColor = mix(u.uBaseColor, trapGlow, 0.6); // Blend user base with Trap
 
     float3 color = lighting * baseColor;
 

@@ -2,6 +2,13 @@ import Combine
 import Foundation
 import QuartzCore
 import simd
+import SwiftUI
+
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 final class ExplorerViewModel: ObservableObject {
     // MARK: - HUD state (SwiftUI reads these; update on main)
@@ -268,7 +275,8 @@ final class ExplorerViewModel: ObservableObject {
             logScale: nav.logScale,
             lightDirection: self.lightDirection,
             shadowSoftness: self.shadowSoftness,
-            trapColor: self.trapColor,
+            trapColor: self.trapColorSIMD,
+            baseColor: self.baseColorSIMD,
             ambientIntensity: self.ambientIntensity
         )
     }
@@ -372,10 +380,23 @@ final class ExplorerViewModel: ObservableObject {
     }
 
     // MARK: - Advanced Lighting
+    
+    // UI Bindings (Color)
+    @Published var baseColor: Color = .cyan
+    @Published var trapColor: Color = .purple
+    
     @Published var lightDirection: SIMD3<Float> = SIMD3<Float>(0.5, 1.0, 0.3)
     @Published var shadowSoftness: Float = 16.0
-    @Published var trapColor: SIMD3<Float> = SIMD3<Float>(1.0, 0.5, 0.0) // Orange glow
     @Published var ambientIntensity: Float = 0.2
+    
+    // Computed SIMD3 for RenderSnapshot
+    var baseColorSIMD: SIMD3<Float> {
+        return baseColor.simd
+    }
+    
+    var trapColorSIMD: SIMD3<Float> {
+        return trapColor.simd
+    }
     
     // MARK: - Internal
     private var cancellables = Set<AnyCancellable>()
@@ -395,6 +416,7 @@ final class ExplorerViewModel: ObservableObject {
         var uLightDir: SIMD3<Float>
         var uShadowSoftness: Float
         var uTrapColor: SIMD3<Float>
+        var uBaseColor: SIMD3<Float>
         var uAmbientIntensity: Float
     }
 
@@ -482,3 +504,22 @@ final class ExplorerViewModel: ObservableObject {
     }
 }
 
+extension Color {
+    var simd: SIMD3<Float> {
+        #if canImport(AppKit)
+        let nsColor = NSColor(self)
+        guard let deviceColor = nsColor.usingColorSpace(.deviceRGB) else { return SIMD3<Float>(1, 1, 1) }
+        return SIMD3<Float>(Float(deviceColor.redComponent), Float(deviceColor.greenComponent), Float(deviceColor.blueComponent))
+        #elseif canImport(UIKit)
+        let uiColor = UIColor(self)
+        var red: CGFloat = 1
+        var green: CGFloat = 1
+        var blue: CGFloat = 1
+        var alpha: CGFloat = 1
+        uiColor.getRed(&red, &green, &blue, &alpha)
+        return SIMD3<Float>(Float(red), Float(green), Float(blue))
+        #else
+        return SIMD3<Float>(1, 1, 1)
+        #endif
+    }
+}

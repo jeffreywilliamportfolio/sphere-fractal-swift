@@ -84,6 +84,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             uLightDir: normalize(snap.lightDirection),
             uShadowSoftness: snap.shadowSoftness,
             uTrapColor: snap.trapColor,
+            uBaseColor: snap.baseColor,
             uAmbientIntensity: snap.ambientIntensity
         )
         memcpy(uniformBuffer.contents(), &uniforms, MemoryLayout<ShaderUniforms>.stride)
@@ -118,6 +119,7 @@ struct ShaderUniforms {
     var uLightDir: SIMD3<Float>
     var uShadowSoftness: Float
     var uTrapColor: SIMD3<Float>
+    var uBaseColor: SIMD3<Float>
     var uAmbientIntensity: Float
 }
 
@@ -132,6 +134,7 @@ struct RenderSnapshot {
     var lightDirection: SIMD3<Float>
     var shadowSoftness: Float
     var trapColor: SIMD3<Float>
+    var baseColor: SIMD3<Float>
     var ambientIntensity: Float
 
     static let `default` = RenderSnapshot(
@@ -143,6 +146,7 @@ struct RenderSnapshot {
         lightDirection: SIMD3<Float>(0.5, 1.0, 0.3),
         shadowSoftness: 16.0,
         trapColor: SIMD3<Float>(1, 0.5, 0),
+        baseColor: SIMD3<Float>(0, 0.6, 1.0),
         ambientIntensity: 0.2
     )
 }

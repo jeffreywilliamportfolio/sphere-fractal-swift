@@ -20,6 +20,9 @@ struct AppearanceSettingsView: View {
     @AppStorage(ExplorerAppearanceKeys.liquidOpacity) private var liquidOpacity: Double = ExplorerAppearance.default.liquidOpacity
 
     @Environment(\.explorerAppearance) private var appearance
+    
+    // Optional ViewModel for Fractal Settings
+    var viewModel: ExplorerViewModel?
 
     var body: some View {
         Form {
@@ -36,6 +39,20 @@ struct AppearanceSettingsView: View {
                 .listRowBackground(Color.clear)
             } header: {
                 Text("Preview")
+            }
+            
+            if let vm = viewModel {
+                Section("Fractal Appearance") {
+                     ColorPicker("Base Color", selection: Binding(
+                        get: { vm.baseColor },
+                        set: { vm.baseColor = $0 }
+                     ))
+                    
+                    ColorPicker("Trap Glow", selection: Binding(
+                       get: { vm.trapColor },
+                       set: { vm.trapColor = $0 }
+                    ))
+                }
             }
 
             Section("Theme") {
@@ -92,6 +109,7 @@ struct AppearanceSettingsView: View {
                 HStack {
                     Text("Shadow")
                     Slider(value: $shadowOpacity, in: 0...0.75, step: 0.05)
+                        .disabled(!liquidEnabled)
                     Text(shadowOpacity, format: .number.precision(.fractionLength(2)))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -218,15 +236,21 @@ struct AppearanceSettingsView: View {
         liquidBlur = d.liquidBlur
         liquidSaturation = d.liquidSaturation
         liquidOpacity = d.liquidOpacity
+        
+        if let vm = viewModel {
+            vm.baseColor = .cyan
+            vm.trapColor = .purple
+        }
     }
 }
 
 struct AppearanceSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    var viewModel: ExplorerViewModel?
 
     var body: some View {
         NavigationStack {
-            AppearanceSettingsView()
+            AppearanceSettingsView(viewModel: viewModel)
                 .padding(20)
                 .navigationTitle("Appearance Settings")
                 .toolbar {
