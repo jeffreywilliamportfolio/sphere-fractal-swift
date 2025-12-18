@@ -11,6 +11,8 @@ struct ContentView: View {
 
     @StateObject private var viewModel = ExplorerViewModel()
     @State private var isShowingAppearance: Bool = false
+    @State private var isShowingBookmarks: Bool = false
+    @State private var isShowingHelp: Bool = false
     @State private var screen: Screen = .splash
     @State private var didStartLaunchFlow: Bool = false
 
@@ -37,8 +39,12 @@ struct ContentView: View {
                     MenuScreen(
                         viewModel: viewModel,
                         showAppearance: { isShowingAppearance = true },
+                        showBookmarks: { isShowingBookmarks = true },
+                        showHelp: { isShowingHelp = true },
                         engage: {
                             isShowingAppearance = false
+                            isShowingBookmarks = false
+                            isShowingHelp = false
                             withAnimation(.easeInOut(duration: 0.5)) {
                                 screen = .engagement
                             }
@@ -56,10 +62,22 @@ struct ContentView: View {
         .sheet(isPresented: $isShowingAppearance) {
             AppearanceSettingsSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $isShowingBookmarks) {
+            ExplorerAppearanceHost { _ in
+                BookmarksSheet(viewModel: viewModel)
+            }
+        }
+        .sheet(isPresented: $isShowingHelp) {
+            ExplorerAppearanceHost { _ in
+                HelpSheet()
+            }
+        }
         .background(Color.black)
         .onChange(of: screen) { _, newValue in
             if newValue != .menu {
                 isShowingAppearance = false
+                isShowingBookmarks = false
+                isShowingHelp = false
             }
             if newValue != .engagement {
                 viewModel.setMouseCaptured(false)
@@ -84,6 +102,8 @@ struct ContentView: View {
 private struct MenuScreen: View {
     @ObservedObject var viewModel: ExplorerViewModel
     var showAppearance: () -> Void
+    var showBookmarks: () -> Void
+    var showHelp: () -> Void
     var engage: () -> Void
 
     @Environment(\.explorerAppearance) private var appearance
@@ -117,8 +137,8 @@ private struct MenuScreen: View {
 
                 HStack(spacing: 20) {
                     MenuIconButton(icon: "paintpalette", label: "Appearance", action: showAppearance)
-                    MenuIconButton(icon: "bookmark", label: "Bookmarks") { /* TODO: Open bookmarks popover */ }
-                    MenuIconButton(icon: "questionmark.circle", label: "Help") { viewModel.toggleHelp() }
+                    MenuIconButton(icon: "bookmark", label: "Bookmarks", action: showBookmarks)
+                    MenuIconButton(icon: "questionmark.circle", label: "Help", action: showHelp)
                 }
             }
             .padding(40)
@@ -183,23 +203,64 @@ private struct EngagementScreen: View {
             }
             .padding(20)
 
+            if let message = viewModel.rendererErrorMessage {
+                VStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Renderer Error")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(message)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Button("Back to Menu", action: showMenu)
+                                .buttonStyle(.borderedProminent)
+                            Spacer()
+                        }
+                    }
+                    .padding(14)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+                    )
+                    .frame(maxWidth: 520)
+                    .padding(20)
+                }
+                .transition(.opacity)
+            }
+
             // "Back" button hint (only visible when mouse not captured or briefly)
             if !viewModel.isMouseCaptured {
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
-                        Button(action: showMenu) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "line.3.horizontal")
-                                Text("Menu")
+                        HStack(spacing: 10) {
+                            Button(action: showMenu) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "line.3.horizontal")
+                                    Text("Menu")
+                                }
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
                             }
-                            .font(.system(size: 13, weight: .medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .buttonStyle(.plain)
+
+                            Button(action: viewModel.resetToOrigin) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                    Text("Reset View")
+                                }
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                         .padding(20)
                     }
                 }
@@ -272,4 +333,3 @@ private struct SplashOverlay: View {
         }
     }
 }
-

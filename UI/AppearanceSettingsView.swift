@@ -1,6 +1,12 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
+    fileprivate enum Layout {
+        static let rowVerticalPadding: CGFloat = 4
+        static let labelColumnWidth: CGFloat = 115
+        static let valueColumnWidth: CGFloat = 52
+    }
+
     @AppStorage(ExplorerAppearanceKeys.theme) private var themeRaw: String = ExplorerAppearance.default.theme.rawValue
     @AppStorage(ExplorerAppearanceKeys.accent) private var accentRaw: String = ExplorerAppearance.default.accentOption.rawValue
     @AppStorage(ExplorerAppearanceKeys.typography) private var typographyRaw: String = ExplorerAppearance.default.typography.rawValue
@@ -43,140 +49,180 @@ struct AppearanceSettingsView: View {
             
             if let vm = viewModel {
                 Section("Fractal Appearance") {
-                     ColorPicker("Base Color", selection: Binding(
-                        get: { vm.baseColor },
-                        set: { vm.baseColor = $0 }
-                     ))
+                    FormRow("Base Color") {
+                        ColorPicker("", selection: Binding(
+                            get: { vm.baseColor },
+                            set: { vm.baseColor = $0 }
+                        ))
+                        .labelsHidden()
+                    }
                     
-                    ColorPicker("Trap Glow", selection: Binding(
-                       get: { vm.trapColor },
-                       set: { vm.trapColor = $0 }
-                    ))
+                    FormRow("Trap Glow") {
+                        ColorPicker("", selection: Binding(
+                           get: { vm.trapColor },
+                           set: { vm.trapColor = $0 }
+                        ))
+                        .labelsHidden()
+                    }
                     
-                    HStack {
-                        Text("Ambient Light")
-                        Slider(value: Binding(
-                            get: { vm.ambientIntensity },
+                    FormRow("Ambient Light") {
+                        let ambient = Binding<Double>(
+                            get: { Double(vm.ambientIntensity) },
                             set: { vm.ambientIntensity = Float($0) }
-                        ), in: 0.0...1.0, step: 0.05)
+                        )
+                        HStack(spacing: 12) {
+                            Slider(value: ambient, in: 0.0...0.6, step: 0.02)
+                            Text(ambient.wrappedValue, format: .number.precision(.fractionLength(2)))
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                        }
                     }
                 }
             }
 
             Section("Theme") {
-                Picker("Preset", selection: $themeRaw) {
-                    ForEach(ExplorerThemePreset.allCases) { preset in
-                        Text(preset.displayName).tag(preset.rawValue)
-                    }
-                }
-
-                Picker("Accent", selection: $accentRaw) {
-                    ForEach(ExplorerAccentOption.allCases) { accent in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(accent.resolvedColor(theme: appearance.theme))
-                                .frame(width: 10, height: 10)
-                            Text(accent.displayName)
+                FormRow("Preset") {
+                    Picker("", selection: $themeRaw) {
+                        ForEach(ExplorerThemePreset.allCases) { preset in
+                            Text(preset.displayName).tag(preset.rawValue)
                         }
-                        .tag(accent.rawValue)
                     }
+                    .labelsHidden()
                 }
 
-                Picker("Typography", selection: $typographyRaw) {
-                    ForEach(ExplorerTypography.allCases) { t in
-                        Text(t.displayName).tag(t.rawValue)
+                FormRow("Accent") {
+                    Picker("", selection: $accentRaw) {
+                        ForEach(ExplorerAccentOption.allCases) { accent in
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(accent.resolvedColor(theme: appearance.theme))
+                                    .frame(width: 10, height: 10)
+                                Text(accent.displayName)
+                            }
+                            .tag(accent.rawValue)
+                        }
                     }
+                    .labelsHidden()
+                }
+
+                FormRow("Typography") {
+                    Picker("", selection: $typographyRaw) {
+                        ForEach(ExplorerTypography.allCases) { t in
+                            Text(t.displayName).tag(t.rawValue)
+                        }
+                    }
+                    .labelsHidden()
                 }
             }
 
             Section("Glass") {
-                Picker("Material", selection: $materialRaw) {
-                    ForEach(ExplorerMaterialStyle.allCases) { m in
-                        Text(m.displayName).tag(m.rawValue)
+                FormRow("Material") {
+                    Picker("", selection: $materialRaw) {
+                        ForEach(ExplorerMaterialStyle.allCases) { m in
+                            Text(m.displayName).tag(m.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                }
+
+                FormRow("Tint") {
+                    HStack(spacing: 12) {
+                        Slider(value: $glassTintOpacity, in: 0...0.30, step: 0.01)
+                        Text(glassTintOpacity, format: .number.precision(.fractionLength(2)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
                     }
                 }
 
-                HStack {
-                    Text("Tint")
-                    Slider(value: $glassTintOpacity, in: 0...0.30, step: 0.01)
-                    Text(glassTintOpacity, format: .number.precision(.fractionLength(2)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
+                FormRow("Stroke") {
+                    HStack(spacing: 12) {
+                        Slider(value: $strokeOpacity, in: 0...1.25, step: 0.05)
+                        Text(strokeOpacity, format: .number.precision(.fractionLength(2)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
                 }
 
-                HStack {
-                    Text("Stroke")
-                    Slider(value: $strokeOpacity, in: 0...1.25, step: 0.05)
-                    Text(strokeOpacity, format: .number.precision(.fractionLength(2)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
-                }
-
-                HStack {
-                    Text("Shadow")
-                    Slider(value: $shadowOpacity, in: 0...0.75, step: 0.05)
-                        .disabled(!liquidEnabled)
-                    Text(shadowOpacity, format: .number.precision(.fractionLength(2)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
+                FormRow("Shadow") {
+                    HStack(spacing: 12) {
+                        Slider(value: $shadowOpacity, in: 0...0.75, step: 0.05)
+                        Text(shadowOpacity, format: .number.precision(.fractionLength(2)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
                 }
             }
 
             Section("Shape") {
-                Picker("Panels", selection: $panelShapeRaw) {
-                    ForEach(ExplorerPanelShape.allCases) { shape in
-                        Text(shape.displayName).tag(shape.rawValue)
+                FormRow("Panels") {
+                    Picker("", selection: $panelShapeRaw) {
+                        ForEach(ExplorerPanelShape.allCases) { shape in
+                            Text(shape.displayName).tag(shape.rawValue)
+                        }
                     }
+                    .labelsHidden()
                 }
 
-                HStack {
-                    Text("Corner Radius")
-                    Slider(value: $panelCornerRadius, in: 6...28, step: 1)
-                        .disabled(currentPanelShape == .capsule)
-                    Text(panelCornerRadius, format: .number.precision(.fractionLength(0)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
+                FormRow("Corner Radius") {
+                    HStack(spacing: 12) {
+                        Slider(value: $panelCornerRadius, in: 6...28, step: 1)
+                            .disabled(currentPanelShape == .capsule)
+                        Text(panelCornerRadius, format: .number.precision(.fractionLength(0)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
                 }
                 .help(currentPanelShape == .capsule ? "Capsule ignores corner radius." : "")
             }
 
             Section("Liquid Backdrop") {
-                Toggle("Enable", isOn: $liquidEnabled)
-                Toggle("Animate", isOn: $liquidMotion)
-                    .disabled(!liquidEnabled)
-
-                HStack {
-                    Text("Blur")
-                    Slider(value: $liquidBlur, in: 0...140, step: 5)
+                FormRow("Enable") {
+                    Toggle("", isOn: $liquidEnabled)
+                        .labelsHidden()
+                }
+                
+                FormRow("Animate") {
+                    Toggle("", isOn: $liquidMotion)
                         .disabled(!liquidEnabled)
-                    Text(liquidBlur, format: .number.precision(.fractionLength(0)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
+                        .labelsHidden()
                 }
 
-                HStack {
-                    Text("Saturation")
-                    Slider(value: $liquidSaturation, in: 1.0...1.8, step: 0.05)
-                        .disabled(!liquidEnabled)
-                    Text(liquidSaturation, format: .number.precision(.fractionLength(2)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
+                FormRow("Blur") {
+                    HStack(spacing: 12) {
+                        Slider(value: $liquidBlur, in: 0...140, step: 5)
+                            .disabled(!liquidEnabled)
+                        Text(liquidBlur, format: .number.precision(.fractionLength(0)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
                 }
 
-                HStack {
-                    Text("Opacity")
-                    Slider(value: $liquidOpacity, in: 0...1.0, step: 0.05)
-                        .disabled(!liquidEnabled)
-                    Text(liquidOpacity, format: .number.precision(.fractionLength(2)))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 44, alignment: .trailing)
+                FormRow("Saturation") {
+                    HStack(spacing: 12) {
+                        Slider(value: $liquidSaturation, in: 1.0...1.8, step: 0.05)
+                            .disabled(!liquidEnabled)
+                        Text(liquidSaturation, format: .number.precision(.fractionLength(2)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
+                }
+
+                FormRow("Opacity") {
+                    HStack(spacing: 12) {
+                        Slider(value: $liquidOpacity, in: 0...1.0, step: 0.05)
+                            .disabled(!liquidEnabled)
+                        Text(liquidOpacity, format: .number.precision(.fractionLength(2)))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(width: Layout.valueColumnWidth, alignment: .trailing)
+                    }
                 }
             }
 
@@ -191,6 +237,13 @@ struct AppearanceSettingsView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
+            }
+
+            if viewModel != nil {
+                Color.clear
+                    .frame(height: 64)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
         }
     }
@@ -333,5 +386,26 @@ private struct GlassPanel<Content: View>: View {
                 shape
                     .strokeBorder(appearance.panelStroke, lineWidth: 1)
             }
+    }
+}
+
+private struct FormRow<Content: View>: View {
+    let label: String
+    let content: () -> Content
+    
+    init(_ label: String, @ViewBuilder content: @escaping () -> Content) {
+        self.label = label
+        self.content = content
+    }
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(label)
+                .frame(width: AppearanceSettingsView.Layout.labelColumnWidth, alignment: .leading)
+                .fixedSize()
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, AppearanceSettingsView.Layout.rowVerticalPadding)
     }
 }

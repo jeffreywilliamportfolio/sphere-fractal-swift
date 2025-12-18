@@ -3,6 +3,14 @@ import MetalKit
 import QuartzCore
 import simd
 
+private func srgbToLinear(_ c: Float) -> Float {
+    let x = max(0, min(1, c))
+    if x <= 0.04045 {
+        return x / 12.92
+    }
+    return pow((x + 0.055) / 1.055, 2.4)
+}
+
 final class MetalRenderer: NSObject, MTKViewDelegate {
     private let device: MTLDevice
     private let commandQueue: MTLCommandQueue
@@ -15,32 +23,36 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private var lastFrameTime: CFTimeInterval = CACurrentMediaTime()
     private var fpsSmoother = FPSSmoother()
 
-    init(device: MTLDevice, viewModel: ExplorerViewModel) {
+    init?(device: MTLDevice, viewModel: ExplorerViewModel, onError: (String) -> Void = { _ in }) {
         self.device = device
         self.viewModel = viewModel
 
         guard let commandQueue = device.makeCommandQueue() else {
-            fatalError("Failed to create MTLCommandQueue.")
+            onError("Failed to create a Metal command queue.")
+            return nil
         }
         self.commandQueue = commandQueue
 
         guard let library = device.makeDefaultLibrary() else {
-            fatalError("Failed to load default Metal library. Make sure the .metal file is in the target.")
+            onError("Failed to load the app’s Metal shader library. Make sure the `.metal` file is included in the target.")
+            return nil
         }
 
         let pipelineDesc = MTLRenderPipelineDescriptor()
         pipelineDesc.vertexFunction = library.makeFunction(name: "fullscreenVertex")
         pipelineDesc.fragmentFunction = library.makeFunction(name: "fractalFragment")
-        pipelineDesc.colorAttachments[0].pixelFormat = .bgra8Unorm
+        pipelineDesc.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
 
         do {
             self.pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDesc)
         } catch {
-            fatalError("Failed to create pipeline state: \(error)")
+            onError("Failed to create the Metal render pipeline. (\(error.localizedDescription))")
+            return nil
         }
 
         guard let uniformBuffer = device.makeBuffer(length: MemoryLayout<ShaderUniforms>.stride, options: [.storageModeShared]) else {
-            fatalError("Failed to create uniform buffer.")
+            onError("Failed to allocate the Metal uniform buffer.")
+            return nil
         }
         self.uniformBuffer = uniformBuffer
 
@@ -69,7 +81,6 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         viewModel?.setFPS(fps)
 
         let t = Float(now - startTime)
-        let resolution = SIMD2<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height))
 
         let snap = viewModel?.stepFrame() ?? RenderSnapshot.default
 
@@ -80,7 +91,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             uCameraUp: snap.cameraUp,
             uOffset: snap.offset,
             uLogScale: snap.logScale,
-            uTime: Float(CACurrentMediaTime()),
+            uTime: t,
             uLightDir: normalize(snap.lightDirection),
             uShadowSoftness: snap.shadowSoftness,
             uTrapColor: snap.trapColor,
@@ -145,8 +156,8 @@ struct RenderSnapshot {
         logScale: 0,
         lightDirection: SIMD3<Float>(0.5, 1.0, 0.3),
         shadowSoftness: 16.0,
-        trapColor: SIMD3<Float>(0.9, 0.95, 1.0),
-        baseColor: SIMD3<Float>(0.0, 0.6, 1.0),
+        trapColor: SIMD3<Float>(srgbToLinear(0.9), srgbToLinear(0.95), srgbToLinear(1.0)),
+        baseColor: SIMD3<Float>(srgbToLinear(0.0), srgbToLinear(0.6), srgbToLinear(1.0)),
         ambientIntensity: 0.2
     )
 }

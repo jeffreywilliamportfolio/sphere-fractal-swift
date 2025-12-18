@@ -1,2 +1,18 @@
+# macOS
+.DS_Store
+
 # Xcode build artifacts
 DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+*.xccheckout
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+
+# Logs
+*.log

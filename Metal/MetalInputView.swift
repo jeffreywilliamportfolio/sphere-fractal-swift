@@ -133,7 +133,12 @@ final class MetalInputView: MTKView {
 
     override func keyDown(with event: NSEvent) {
         guard let viewModel else { return }
-        guard viewModel.isMouseCaptured else { return }
+        
+        // Allow arrow-key look even when mouse capture is off (e.g., after pressing Esc).
+        // Keep other movement keys gated behind capture so we don't interfere with UI typing.
+        let code = event.keyCode
+        let isArrowKey = (code == 123 || code == 124 || code == 125 || code == 126)
+        guard viewModel.isMouseCaptured || isArrowKey else { return }
 
         if event.keyCode == 53 { // Esc
             releaseMouseIfNeeded()
@@ -141,7 +146,6 @@ final class MetalInputView: MTKView {
             return
         }
 
-        let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if !event.isARepeat {
             if event.keyCode == 4 { viewModel.toggleHelp() } // H
             if event.keyCode == 34 { viewModel.toggleStats() } // I
@@ -149,8 +153,6 @@ final class MetalInputView: MTKView {
 
         // Key Codes (US QWERTY standard, but generally consistent positionally for games)
         // W=13, S=1, A=0, D=2, Q=12, E=14
-        let code = event.keyCode
-        
         switch code {
         case 13: viewModel.setKey("w", isDown: true)
         case 1:  viewModel.setKey("s", isDown: true)
@@ -158,15 +160,21 @@ final class MetalInputView: MTKView {
         case 2:  viewModel.setKey("d", isDown: true)
         case 12: viewModel.setKey("q", isDown: true)
         case 14: viewModel.setKey("e", isDown: true)
+        case 123: viewModel.setKey("leftArrow", isDown: true)
+        case 124: viewModel.setKey("rightArrow", isDown: true)
+        case 126: viewModel.setKey("upArrow", isDown: true)
+        case 125: viewModel.setKey("downArrow", isDown: true)
         default: break
         }
     }
 
     override func keyUp(with event: NSEvent) {
         guard let viewModel else { return }
-        guard viewModel.isMouseCaptured else { return }
-
+        
         let code = event.keyCode
+        let isArrowKey = (code == 123 || code == 124 || code == 125 || code == 126)
+        guard viewModel.isMouseCaptured || isArrowKey else { return }
+
         switch code {
         case 13: viewModel.setKey("w", isDown: false)
         case 1:  viewModel.setKey("s", isDown: false)
@@ -174,6 +182,10 @@ final class MetalInputView: MTKView {
         case 2:  viewModel.setKey("d", isDown: false)
         case 12: viewModel.setKey("q", isDown: false)
         case 14: viewModel.setKey("e", isDown: false)
+        case 123: viewModel.setKey("leftArrow", isDown: false)
+        case 124: viewModel.setKey("rightArrow", isDown: false)
+        case 126: viewModel.setKey("upArrow", isDown: false)
+        case 125: viewModel.setKey("downArrow", isDown: false)
         default: break
         }
     }

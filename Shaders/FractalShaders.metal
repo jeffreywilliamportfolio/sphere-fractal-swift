@@ -50,6 +50,39 @@ static constant float BULB_POWER = 8.0;
 
 float sceneSDF(float3 p, constant Uniforms& u);
 
+// MARK: - Palette / Shimmer helpers
+
+float hash31(float3 p) {
+    return fract(sin(dot(p, float3(127.1, 311.7, 74.7))) * 43758.5453123);
+}
+
+float3 paletteCosine(float t) {
+    // Smooth, vibrant palette (cosine palette).
+    float3 a = float3(0.55, 0.50, 0.52);
+    float3 b = float3(0.45, 0.45, 0.48);
+    float3 c = float3(1.00, 1.00, 1.00);
+    float3 d = float3(0.00, 0.33, 0.67);
+    return a + b * cos(6.2831853 * (c * t + d));
+}
+
+float3 srgbToLinear(float3 c) {
+    // Exact sRGB EOTF (piecewise).
+    float3 x = clamp(c, 0.0, 1.0);
+    float3 lo = x / 12.92;
+    float3 hi = pow((x + 0.055) / 1.055, float3(2.4));
+    return select(hi, lo, x <= 0.04045);
+}
+
+float3 toneMapACES(float3 x) {
+    // Narkowicz 2015, "ACES Filmic Tone Mapping Curve".
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+
 float sphereConstraint(float3 p) {
     return length(p) - SPHERE_RADIUS;
 }
@@ -81,7 +114,7 @@ float2 mapMandelbulb(float3 p, constant Uniforms& u) {
         r = length(z);
         if (r > 2.0) { break; }
         
-        // Orbit trap: track min distance to origin (or other geometry)
+        // Orbit trap: track min distance to origin
         trap = min(trap, r);
 
         float rSafe = max(r, 1e-6);
@@ -164,8 +197,8 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float2 res = max(u.uResolution, float2(1.0, 1.0));
 
     // Background gradient (miss color)
-    float3 bg0 = float3(0.05, 0.05, 0.10);
-    float3 bg1 = float3(0.10, 0.10, 0.15);
+    float3 bg0 = srgbToLinear(float3(0.05, 0.05, 0.10));
+    float3 bg1 = srgbToLinear(float3(0.10, 0.10, 0.15));
     float3 background = mix(bg0, bg1, clamp(vUv.y, 0.0, 1.0));
 
     // Camera rays
@@ -185,6 +218,7 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
 
     float t = raymarch(ro, rd, u);
     if (t < 0.0) {
+        // Output linear; the render target is sRGB so conversion happens automatically.
         return float4(background, 1.0);
     }
 
@@ -206,30 +240,61 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     float3 diffuse = float3(0.8, 0.8, 0.8) * ndl * shadow; // Apply shadow to diffuse
 
     float3 r = reflect(-lightDir, n);
-    float spec = 0.8 * pow(max(dot(rd, r), 0.0), 64.0) * shadow; // Sharp, strong highlights
+    float3 v = -rd;
+    float spec = 0.8 * pow(max(dot(v, r), 0.0), 64.0) * shadow; // Sharp, strong highlights
+
+    // --- Multi-color palette (driven by trap + position) ---
+    float scale = exp(u.uLogScale);
+    float zoom01 = clamp(log2(1.0 + scale) / 8.0, 0.0, 1.0);
+    float trapIntensity = smoothstep(0.0, 1.0, trap);
+
+    float shimmerPhase = u.uTime * (0.7 + 1.0 * zoom01) + dot(p, float3(1.7, 2.1, 2.7)) * 0.85;
+    float hueDrift = 0.06 * sin(shimmerPhase) + 0.03 * sin(shimmerPhase * 2.13);
+
+    float paletteT = 0.55 * (1.0 - trapIntensity);
+    paletteT += 0.10 * dot(normalize(p), float3(0.7, 1.0, 1.3));
+    paletteT += hueDrift;
+    paletteT = fract(paletteT);
+
+    float3 paletteColor = paletteCosine(paletteT);
+
+    // Shimmering micro-sparkle (stable in 3D space)
+    float sparkleGrid = mix(10.0, 20.0, zoom01);
+    float3 cell = floor(p * sparkleGrid + 0.5);
+    float cellHash = hash31(cell);
+    float twinkle = 0.5 + 0.5 * sin(u.uTime * (3.0 + 2.0 * cellHash) + cellHash * 6.2831853);
+    float sparkle = smoothstep(0.987, 1.0, cellHash) * twinkle;
+
+    // Let sparkles punch specular a bit for a shimmering look.
+    spec *= (1.0 + sparkle * 1.75);
     float3 specular = float3(spec);
 
     float ao = computeAO(p, n, u);
     float3 lighting = (ambient + diffuse + specular) * ao;
 
     // Trap Coloring (Inner Glow)
-    // Map trap (0..2) to color intensity. Closer to 0 = deeper inside bulb structure = hotter color.
-    float trapIntensity = smoothstep(0.0, 1.0, trap); // exp(-trap * 2.0) could also work
+    // `uTrapColor`/`uBaseColor` are provided in linear space from Swift.
     float3 trapGlow = mix(u.uTrapColor, float3(1.0), 1.0 - trapIntensity); // White hot center
     
-    // Base color mixed with trap (use user base color)
-    float3 baseColor = mix(u.uBaseColor, trapGlow, 0.4); // Balanced mix (was 0.6 trap dominant)
+    // Base color mixed with palette + trap
+    float3 baseColor = mix(u.uBaseColor, paletteColor, 0.75);
+    baseColor = mix(baseColor, trapGlow, 0.4);
+    baseColor *= (1.0 + 0.03 * sin(shimmerPhase * 1.31)); // subtle overall shimmer
 
     float3 color = lighting * baseColor;
 
+    // Add a tiny emissive sparkle component (kept subtle so it doesn't blow out)
+    float sparkleVis = sparkle * shadow * ao * (0.2 + 0.8 * ndl);
+    color += (paletteColor * 1.6 + float3(0.8)) * sparkleVis * 0.35;
+
     // Fresnel Rim Light (Glowing Edges)
     float fresnel = pow(1.0 - max(dot(n, -rd), 0.0), 4.0);
-    float3 rimColor = float3(0.6, 0.8, 1.0); // Icy blue rim
-    color += rimColor * fresnel * 0.8; // Add glow on top
+    float3 rimColor = mix(float3(0.6, 0.8, 1.0), paletteColor, 0.6);
+    color += rimColor * fresnel * 0.8;
 
     // Fog
     float fogAmount = 1.0 - exp(-t * 0.02);
-    float3 fogColor = float3(0.1, 0.1, 0.15);
+    float3 fogColor = srgbToLinear(float3(0.1, 0.1, 0.15));
     color = mix(color, fogColor, fogAmount);
 
     // Vignette
@@ -237,8 +302,10 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]], constant Uniforms& u 
     vignette = clamp(vignette, 0.0, 1.0);
     color *= vignette;
     
-    // Gamma Correction (Linear -> sRGB)
-    color = pow(color, float3(1.0 / 2.2));
+    // Post: exposure + filmic tonemap (ACES). Output stays linear.
+    float exposure = 1.35;
+    color *= exposure;
+    color = toneMapACES(color);
 
     return float4(color, 1.0);
 }

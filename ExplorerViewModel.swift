@@ -22,6 +22,8 @@ final class ExplorerViewModel: ObservableObject {
     @Published var isMouseCaptured: Bool = false
     @Published var isGamepadConnected: Bool = false
     @Published var isPrecisionMode: Bool = false
+
+    @Published var rendererErrorMessage: String? = nil
     
     @Published var bookmarks: [Bookmark] = []
     @Published var bookmarkDraftName: String = ""
@@ -37,6 +39,7 @@ final class ExplorerViewModel: ObservableObject {
     private var input = InputState()
     private var lastHUDUpdateTime: CFTimeInterval = 0
     private var lastFPSUpdateTime: CFTimeInterval = 0
+    private var lastStepTime: CFTimeInterval = CACurrentMediaTime()
     
     private let bookmarksKey = "AeternaSphere.bookmarks.v1"
     private var gamepadManager: GamepadManager?
@@ -44,6 +47,16 @@ final class ExplorerViewModel: ObservableObject {
     init() {
         loadBookmarks()
         gamepadManager = GamepadManager(viewModel: self)
+    }
+
+    func setRendererErrorMessage(_ message: String?) {
+        if Thread.isMainThread {
+            rendererErrorMessage = message
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.rendererErrorMessage = message
+            }
+        }
     }
     
     // MARK: - Input (called from MetalInputView / GamepadManager)
@@ -94,6 +107,10 @@ final class ExplorerViewModel: ObservableObject {
         case "d": input.setKey(.right, isDown: isDown)
         case "q": input.setKey(.down, isDown: isDown)
         case "e": input.setKey(.up, isDown: isDown)
+        case "leftArrow": input.setKey(.lookLeft, isDown: isDown)
+        case "rightArrow": input.setKey(.lookRight, isDown: isDown)
+        case "upArrow": input.setKey(.lookUp, isDown: isDown)
+        case "downArrow": input.setKey(.lookDown, isDown: isDown)
         default: break
         }
     }
@@ -154,6 +171,12 @@ final class ExplorerViewModel: ObservableObject {
     
     func stepFrame() -> RenderSnapshot {
         let now = CACurrentMediaTime()
+        let dt: Float = {
+            let raw = now - lastStepTime
+            lastStepTime = now
+            // Clamp to avoid huge jumps (e.g., when the app regains focus).
+            return Float(min(max(raw, 1.0 / 240.0), 1.0 / 20.0))
+        }()
         
         // Copy & clear per-frame input with a single lock section.
         let frameState: (nav: NavigationState, input: InputState) = {
@@ -169,12 +192,24 @@ final class ExplorerViewModel: ObservableObject {
         var nav = frameState.nav
         let input = frameState.input
         
-        // 0) Apply look deltas (mouse + gamepad).
+        // 0) Apply look deltas (mouse + gamepad + keyboard arrows).
         nav.yaw += input.mouseDelta.x * Constants.mouseSensitivity
         nav.pitch -= input.mouseDelta.y * Constants.mouseSensitivity
         
         nav.yaw += input.gamepadRight.x * Constants.gamepadLookSpeed
         nav.pitch += input.gamepadRight.y * Constants.gamepadLookSpeed
+
+        var lookX: Float = 0
+        var lookY: Float = 0
+        lookX += input.isDown(.lookRight) ? 1 : 0
+        lookX -= input.isDown(.lookLeft) ? 1 : 0
+        lookY += input.isDown(.lookUp) ? 1 : 0
+        lookY -= input.isDown(.lookDown) ? 1 : 0
+
+        if lookX != 0 || lookY != 0 {
+            nav.yaw += lookX * Constants.keyboardLookSpeed * dt
+            nav.pitch += lookY * Constants.keyboardLookSpeed * dt
+        }
         
         nav.pitch = clamp(nav.pitch, -Constants.maxPitch, Constants.maxPitch)
         
@@ -387,7 +422,8 @@ final class ExplorerViewModel: ObservableObject {
     
     @Published var lightDirection: SIMD3<Float> = SIMD3<Float>(0.5, 1.0, 0.3)
     @Published var shadowSoftness: Float = 16.0
-    @Published var ambientIntensity: Float = 0.5
+    // Lower default ambient; high ambient flattens shading and makes the bulb look washed out.
+    @Published var ambientIntensity: Float = 0.2
     
     // Computed SIMD3 for RenderSnapshot
     var baseColorSIMD: SIMD3<Float> {
@@ -476,6 +512,10 @@ final class ExplorerViewModel: ObservableObject {
             case right = 8
             case up = 16
             case down = 32
+            case lookLeft = 64
+            case lookRight = 128
+            case lookUp = 256
+            case lookDown = 512
         }
     }
     
@@ -488,6 +528,7 @@ final class ExplorerViewModel: ObservableObject {
         static let scrollSensitivity: Float = 0.000375
         static let mouseSensitivity: Float = 0.002
         static let gamepadLookSpeed: Float = 0.05
+        static let keyboardLookSpeed: Float = 1.75
         static let speedTriggerDelta: Float = 0.001
         static let minSpeed: Float = 0.01
         static let maxSpeed: Float = 0.2
@@ -506,10 +547,21 @@ final class ExplorerViewModel: ObservableObject {
 
 extension Color {
     var simd: SIMD3<Float> {
+        func srgbToLinear(_ c: Float) -> Float {
+            let x = max(0, min(1, c))
+            if x <= 0.04045 {
+                return x / 12.92
+            }
+            return pow((x + 0.055) / 1.055, 2.4)
+        }
+
         #if canImport(AppKit)
         let nsColor = NSColor(self)
-        guard let deviceColor = nsColor.usingColorSpace(.deviceRGB) else { return SIMD3<Float>(1, 1, 1) }
-        return SIMD3<Float>(Float(deviceColor.redComponent), Float(deviceColor.greenComponent), Float(deviceColor.blueComponent))
+        guard let srgbColor = nsColor.usingColorSpace(.sRGB) else { return SIMD3<Float>(1, 1, 1) }
+        let r = srgbToLinear(Float(srgbColor.redComponent))
+        let g = srgbToLinear(Float(srgbColor.greenComponent))
+        let b = srgbToLinear(Float(srgbColor.blueComponent))
+        return SIMD3<Float>(r, g, b)
         #elseif canImport(UIKit)
         let uiColor = UIColor(self)
         var red: CGFloat = 1
@@ -517,7 +569,7 @@ extension Color {
         var blue: CGFloat = 1
         var alpha: CGFloat = 1
         uiColor.getRed(&red, &green, &blue, &alpha)
-        return SIMD3<Float>(Float(red), Float(green), Float(blue))
+        return SIMD3<Float>(srgbToLinear(Float(red)), srgbToLinear(Float(green)), srgbToLinear(Float(blue)))
         #else
         return SIMD3<Float>(1, 1, 1)
         #endif
